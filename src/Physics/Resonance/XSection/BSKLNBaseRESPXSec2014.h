@@ -8,7 +8,7 @@
 
 \ref      Berger, Sehgal Phys. Rev. D76, 113004 (2007) \n
           Kuzmin, Lyubushkin, Naumov Mod. Phys. Lett. A19 (2004) 2815 \n
-	        D.Rein and L.M.Sehgal, Neutrino Excitation of Baryon Resonances
+          D.Rein and L.M.Sehgal, Neutrino Excitation of Baryon Resonances
           and Single Pion Production, Ann.Phys.133, 79 (1981) \n
 
           Modifications based on a MiniBooNE tune courtesy of J. Nowak, S.Dytman
@@ -54,17 +54,19 @@ namespace genie {
       double XSec         (const Interaction * i, KinePhaseSpace_t k) const;
       double Integral     (const Interaction * i) const;
       bool   ValidProcess (const Interaction * i) const;
+      std::vector<double> GetSigs() const;
 
       // overload the Algorithm::Configure() methods to load private data
       // members from configuration options
       void Configure(const Registry & config);
       void Configure(string config);
 
+
     protected:
 
       BSKLNBaseRESPXSec2014(string name);
       BSKLNBaseRESPXSec2014(string name, string config);
-
+      
       void LoadConfig (void);
 
       mutable FKR fFKR;
@@ -104,7 +106,9 @@ namespace genie {
       // Tuned to ANL BNL data
       bool fGAMiniBooNE;
       bool fGVMiniBooNE;
-
+      mutable double fSig_minus_minus;
+      mutable double fSig_plus_plus;
+      mutable double fSig_minus_plus;
       const XSecIntegratorI * fXSecIntegrator;
   };
 

@@ -74,6 +74,12 @@ BSKLNBaseRESPXSec2014::~BSKLNBaseRESPXSec2014()
 double BSKLNBaseRESPXSec2014::XSec(
     const Interaction * interaction, KinePhaseSpace_t kps) const
 {
+
+  // Reset mutable members
+  fSig_plus_plus = 0;
+  fSig_minus_minus = 0;
+  fSig_minus_plus = 0;
+
   if(! this -> ValidProcess    (interaction) ) return 0.;
   if(! this -> ValidKinematics (interaction) ) return 0.;
 
@@ -126,7 +132,7 @@ double BSKLNBaseRESPXSec2014::XSec(
   int    LR  = utils::res::OrbitalAngularMom (resonance);
   double MR  = utils::res::Mass              (resonance);
   double WR  = utils::res::Width             (resonance);
-   double NR  = fNormBW?utils::res::BWNorm    (resonance,fN0ResMaxNWidths,fN2ResMaxNWidths,fGnResMaxNWidths):1;
+  double NR  = fNormBW?utils::res::BWNorm    (resonance,fN0ResMaxNWidths,fN2ResMaxNWidths,fGnResMaxNWidths):1;
 
   // Following NeuGEN, avoid problems with underlying unphysical
   // model assumptions by restricting the allowed W phase space
@@ -136,6 +142,7 @@ double BSKLNBaseRESPXSec2014::XSec(
         else if (W > MR + fN2ResMaxNWidths * WR && IR==2) return 0.;
         else if (W > MR + fGnResMaxNWidths * WR)          return 0.;
   }
+
 
   // Compute auxiliary & kinematical factors
   double E      = init_state.ProbeE(kRfHitNucRest);
@@ -432,6 +439,10 @@ double BSKLNBaseRESPXSec2014::XSec(
   double sigL_minus = 0;
   double sigR_minus = 0;
   double sigS_minus = 0;
+  
+  double sigL_minus_plus = 0;
+  double sigR_minus_plus = 0;
+  double sigS_minus_plus = 0;
 
   double sigL_plus = 0;
   double sigR_plus = 0;
@@ -530,7 +541,6 @@ double BSKLNBaseRESPXSec2014::XSec(
             assert(hamplmod_BRS_minus);
 
             const RSHelicityAmpl & hampl_BRS_minus = hamplmod_BRS_minus->Compute(resonance, fFKR);
-
             sigL_minus = (hampl_BRS_minus.Amp2Plus3 () + hampl_BRS_minus.Amp2Plus1 ());
             sigR_minus = (hampl_BRS_minus.Amp2Minus3() + hampl_BRS_minus.Amp2Minus1());
             sigS_minus = (hampl_BRS_minus.Amp20Plus () + hampl_BRS_minus.Amp20Minus());
@@ -546,6 +556,13 @@ double BSKLNBaseRESPXSec2014::XSec(
             sigL_plus = (hampl_BRS_plus.Amp2Plus3 () + hampl_BRS_plus.Amp2Plus1 ());
             sigR_plus = (hampl_BRS_plus.Amp2Minus3() + hampl_BRS_plus.Amp2Minus1());
             sigS_plus = (hampl_BRS_plus.Amp20Plus () + hampl_BRS_plus.Amp20Minus());
+
+            // Code added by Simon to be able to calculate the polarization vector
+            // The definition of sigma^lambda lambda' is given in the lepton polarization paper (Kuzmin et al. 2003), page 8, middle of the page
+            // sigma^lambda lambda' =  pi*W/(2M) * (f^lambda * f^lambda' + f^lambda * f^lambda')
+            sigL_minus_plus = hampl_BRS_minus.AmpPlus3()*hampl_BRS_plus.AmpPlus3() + hampl_BRS_minus.AmpPlus1()*hampl_BRS_plus.AmpPlus1();
+            sigR_minus_plus = hampl_BRS_minus.AmpMinus3()*hampl_BRS_plus.AmpMinus3() + hampl_BRS_minus.AmpMinus1()*hampl_BRS_plus.AmpMinus1();
+            sigS_minus_plus = hampl_BRS_minus.Amp0Plus()*hampl_BRS_plus.Amp0Plus() + hampl_BRS_minus.Amp0Minus()*hampl_BRS_plus.Amp0Minus();
           }
 
   // Compute the cross section
@@ -557,6 +574,10 @@ double BSKLNBaseRESPXSec2014::XSec(
      sigL_plus  *= scLR;
      sigR_plus  *= scLR;
      sigS_plus  *= scS;
+     
+     sigL_minus_plus *= scLR;
+     sigR_minus_plus *= scLR;
+     sigS_minus_plus *= scS;
 
      LOG("BSKLNBaseRESPXSec2014", pINFO)
          << "sL,R,S minus = " << sigL_minus << "," << sigR_minus << "," << sigS_minus;
@@ -582,7 +603,18 @@ double BSKLNBaseRESPXSec2014::XSec(
 
   double xsec = 0.0;
 
+
   if(is_KLN || is_BRS) {
+
+      // Code added by Simon to be able to calculate the polarization vector
+      // Sigma_{lambda lambda'} values are calculated using Kuzmin et al., 2004, p. 1, second to last equation.
+      // Sigma_++
+      fSig_minus_minus = TMath::Power(KNL_cL_minus,2)*sigL_minus + TMath::Power(KNL_cR_minus,2)*sigR_minus + TMath::Power(KNL_cS_minus,2)*sigS_minus;
+      // Sigma_--
+      fSig_plus_plus = TMath::Power(KNL_cL_plus,2)*sigL_plus + TMath::Power(KNL_cR_plus,2)*sigR_plus + TMath::Power(KNL_cS_plus,2)*sigS_plus;
+      // Sigma_+- = Sigma_-+
+      fSig_minus_plus = KNL_cL_minus*KNL_cL_plus*sigL_minus_plus + KNL_cR_minus*KNL_cR_plus*sigR_minus_plus + KNL_cS_minus*KNL_cS_plus*sigS_minus_plus;
+
       xsec =   TMath::Power(KNL_cL_minus,2)*sigL_minus + TMath::Power(KNL_cL_plus,2)*sigL_plus
              + TMath::Power(KNL_cR_minus,2)*sigR_minus + TMath::Power(KNL_cR_plus,2)*sigR_plus
              + TMath::Power(KNL_cS_minus,2)*sigS_minus + TMath::Power(KNL_cS_plus,2)*sigS_plus;
@@ -712,8 +744,14 @@ double BSKLNBaseRESPXSec2014::XSec(
 
      xsec *= FactorPauli_RES;
   }
+
   return xsec;
 }
+
+std::vector<double> BSKLNBaseRESPXSec2014::GetSigs() const {
+  return {fSig_minus_minus, fSig_plus_plus, fSig_minus_plus};
+}
+
 //____________________________________________________________________________
 double BSKLNBaseRESPXSec2014::Integral(const Interaction * interaction) const
 {
